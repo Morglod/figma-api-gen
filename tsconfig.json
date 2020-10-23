@@ -1,4 +1,10 @@
 {
+  "include": [
+    "./src"
+  ],
+  "exclude": [
+    "example_output"
+  ],
   "compilerOptions": {
     /* Basic Options */
     // "incremental": true,                   /* Enable incremental compilation */

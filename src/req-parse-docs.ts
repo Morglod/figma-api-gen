@@ -4,14 +4,14 @@ import { PropType, ObjectType } from './types';
 
 export async function reqParseDocs() {
     const browser = await puppeteer.launch({
-        headless: false,
+        headless: true,
     });
     const page = await browser.newPage();
     await page.goto('https://www.figma.com/developers/docs', {
         timeout: 120000
     });
 
-    const props = await page.evaluate((DOC_TYPES_IDS: DOC_TYPE_ID[]) => {
+    const objects = await page.evaluate((DOC_TYPES_IDS: DOC_TYPE_ID[]) => {
         const docData = window.document.body.innerHTML;
 
         const findHashedClass = (classPart: string, debugMsg?: string) => {
@@ -54,6 +54,8 @@ export async function reqParseDocs() {
             const typeKeyEl = propTableRow.children.item(0)! as HTMLTableDataCellElement;
             const typeValueEl = propTableRow.children.item(1)! as HTMLTableDataCellElement;
 
+            // console.log(typeKeyEl);
+
             let typeName = '', typeDesc = '';
             if (typeKeyEl.children.length === 2) {
                 const nameEl = typeKeyEl.children.item(0)! as HTMLElement;
@@ -68,6 +70,8 @@ export async function reqParseDocs() {
                 if (descEl) typeDesc = descEl.innerText;
             } else {
                 typeName = typeKeyEl.innerText;
+                const foundDescEl = typeKeyEl.querySelector<HTMLDivElement>(`.${propDescClass}`);
+                if (foundDescEl) typeDesc = foundDescEl.innerText;
             }
 
             let props: PropType[] = [];
@@ -163,11 +167,15 @@ export async function reqParseDocs() {
         return types;
     }, DOC_TYPES_IDS as any);
   
+    // await new Promise(resol => setTimeout(() => {}, 9999));
+
     await browser.close();
 
-    // append default types
+    return objects;
+}
 
-    props.push({
+export function fixObjects(objs: ObjectType[]) {
+    objs.push({
         name: 'Path',
         extends: '',
         desc: 'A vector svg path',
@@ -198,7 +206,7 @@ export async function reqParseDocs() {
         enumValues: [],
     });
 
-    props.push({
+    objs.push({
         name: 'StyleType',
         extends: '',
         desc: '',
@@ -212,7 +220,7 @@ export async function reqParseDocs() {
         ],
     });
 
-    props.push({
+    objs.push({
         name: 'PageInfo',
         extends: '',
         desc: `UNDOCUMENTED\nData on component's containing page, if component resides in a multi-page file`,
@@ -223,9 +231,9 @@ export async function reqParseDocs() {
 
     // Make partial type for TEXT.styleOverrideTable option
 
-    const TypeStyle = props.find(x => x.name === 'TypeStyle');
+    const TypeStyle = objs.find(x => x.name === 'TypeStyle');
 
-    props.push({
+    objs.push({
         ...TypeStyle!,
         name: 'TypeStylePartial',
         props: TypeStyle!.props.map(x => ({
@@ -234,7 +242,7 @@ export async function reqParseDocs() {
         })),
     });
 
-    props.find(x => x.name === 'TEXT')!.props.find(x => x.name === 'styleOverrideTable')!.type = 'TypeStylePartial';
+    objs.find(x => x.name === 'TEXT')!.props.find(x => x.name === 'styleOverrideTable')!.type = 'TypeStylePartial';
 
     // TODO: mark 'may be null' fields
 
@@ -249,7 +257,7 @@ export async function reqParseDocs() {
     };
 
     for (const [ t, f ] of Object.entries(mayBeNull)) {
-        const typ = props.find(x => x.name === t);
+        const typ = objs.find(x => x.name === t);
         for (const fieldName of f) {
             const typ_field = typ!.props.find(x => x.name === fieldName);
             typ_field!.mayBeNull = true;
@@ -257,12 +265,12 @@ export async function reqParseDocs() {
     }
 
     for (const [ t, f ] of Object.entries(mayBeOptional)) {
-        const typ = props.find(x => x.name === t);
+        const typ = objs.find(x => x.name === t);
         for (const fieldName of f) {
             const typ_field = typ!.props.find(x => x.name === fieldName);
             typ_field!.optional = true;
         }
     }
 
-    return props;
+    return objs;
 }

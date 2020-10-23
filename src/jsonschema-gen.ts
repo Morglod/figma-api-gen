@@ -191,7 +191,7 @@ function postUpdateSchema(ctx: GeneratedSchema): GeneratedSchema {
         description: 'A 2x3 affine transformation matrix\n * the identity matrix would be [[1, 0, 0], [0, 1, 0]]',
     });
 
-    const nodeSchema = ctx['Node'];
+    const nodeSchema = ctx['NodeBase'];
 
     const nodeTypes = [
         'DOCUMENT',
